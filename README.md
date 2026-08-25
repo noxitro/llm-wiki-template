@@ -17,6 +17,12 @@ cd my-wiki
 git remote remove origin   # ⚠️ 必須: 蓄積する知識を誤って公開先へpushしないため
 ```
 
+`origin` が削除されたことを確認してから、wiki の内容を追加してください。
+
+```powershell
+git remote -v  # 出力が空であること
+```
+
 VS Code でフォルダを開き、Copilot Chat(エージェントモード)で:
 
 | コマンド | 動作 |
@@ -46,10 +52,41 @@ VS Code でフォルダを開き、Copilot Chat(エージェントモード)で:
 
 ## Copilot CLI: どこからでも自動参照
 
-CLIはワークスペースの制約がなく、任意のディレクトリから自動参照できる:
+次の PowerShell スクリプトは、グローバル指示を作成し、必要なら wiki へのリンクも作成する。既存の `%USERPROFILE%\.copilot\copilot-instructions.md` は `-Force` を明示しない限り上書きしない。
 
-1. [templates/copilot-instructions.md](templates/copilot-instructions.md) を `%USERPROFILE%\.copilot\copilot-instructions.md` にコピーし、wikiのパスを書き換える
-2. 以後、どこで `copilot` を起動しても、関連する話題ではwikiを先に確認するようになる(アクセス許可は `--add-dir <wikiのパス>`)
+### 推奨: Junction を作成する
+
+Windows では管理者権限や Developer Mode を必要としない Junction を既定にする。以下は、クローン済みのリポジトリ直下で実行する例。
+
+```powershell
+.\scripts\setup-copilot-wiki.ps1 `
+  -LinkPath "$env:USERPROFILE\llm-wiki"
+```
+
+Junction は Git で管理しないローカル専用のリンクである。別のマシンでは clone 後にこのコマンドを再実行する。
+
+### Symbolic Link を使う場合
+
+Symbolic Link は管理者権限または Windows の Developer Mode が必要であり、通常権限では作成に失敗する。その環境要件を満たす場合だけ、次のように明示する。
+
+```powershell
+.\scripts\setup-copilot-wiki.ps1 `
+  -LinkPath "$env:USERPROFILE\llm-wiki" `
+  -UseSymbolicLink
+```
+
+リンクが不要な場合は、クローン直下で `.\scripts\setup-copilot-wiki.ps1` を実行する。作成後は、設定したパスを CLI に許可する。
+
+```powershell
+copilot --add-dir "$env:USERPROFILE\llm-wiki"
+```
+
+セットアップの確認:
+
+```powershell
+Test-Path "$env:USERPROFILE\llm-wiki\index.md"  # True
+Get-Content "$env:USERPROFILE\.copilot\copilot-instructions.md"
+```
 
 ## 構造
 
