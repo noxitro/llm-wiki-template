@@ -1,0 +1,16 @@
+# LLM Wiki の機械の点検(scripts/wiki_lint.py)。MR と既定ブランチへの push で走る。
+wiki-lint:
+  image: python:3.12
+  variables:
+    GIT_DEPTH: "0" # raw/ と log.md を比べる相手のコミットまで取る
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        WIKI_LINT_BASE: $CI_MERGE_REQUEST_DIFF_BASE_SHA
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      variables:
+        WIKI_LINT_BASE: $CI_COMMIT_BEFORE_SHA
+  before_script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+  script:
+    - python scripts/wiki_lint.py --base "$WIKI_LINT_BASE" --require-history
