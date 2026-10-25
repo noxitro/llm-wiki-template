@@ -1,110 +1,100 @@
 # llm-wiki
 
-GitHub Copilot が構築・維持するパーソナルナレッジベースのテンプレート。
+LLM エージェントが維持するナレッジ wiki(vault)のテンプレート。
+作業の中で**裏取りできた知見だけ**を、次のセッションでそのまま前提にできる形で残す。
 
-RAGのように質問のたびに生ドキュメントを検索し直すのではなく、ソースを取り込むたびにエージェントが**永続的なwiki**(相互リンクされたmarkdown群)を更新していく。相互参照は張られ済み、矛盾はフラグ済み、要約は読んだ全てを反映済み——知識が複利で蓄積される。人間はソースの選定と質問に専念し、要約・整理・索引・記録はすべてエージェントが行う。
+- プレーンな Markdown と git だけで動く。ベクトル DB・埋め込み・MCP は要らない
+- 規約は [AGENTS.md](AGENTS.md) に集約する。エージェントは読み書きの前に必ず読む
+- 根拠(`raw/`)とページ(`wiki/`)を分ける。根拠は足すだけで、変えない・消さない
+- 規約に沿っているかは、スクリプト(`scripts/wiki_lint.py`)が LLM を使わずに検査する
+- Obsidian でそのまま閲覧できる(`[[wikilink]]`・グラフビュー)
 
-- **プレーンなmarkdownとgitだけ**。ベクトルDB・埋め込み・MCP不要
-- 規約は [AGENTS.md](AGENTS.md)(schema)に集約。エージェントが常時参照し、運用しながら共進化させる
-- `raw/`(不変のソース原本)と `wiki/`(生成ページ)を分離。原本が真実の源
-- Obsidianでそのまま閲覧可能(`[[wikilink]]`・グラフビュー対応)
+## 入っているもの
 
-## クイックスタート
+| 場所 | 中身 |
+| --- | --- |
+| `AGENTS.md` | 規約(ページと根拠の形、格納の条件、Query / Ingest / Lint の手順) |
+| `CLAUDE.md` | Claude Code 向けに `AGENTS.md` を読み込むだけの 1 行 |
+| `index.md` / `log.md` | 空の一覧と空の操作ログ |
+| `wiki/` / `raw/` | 空(ページと根拠はここに増えていく) |
+| `templates/` | ページ(`page.md`)と根拠ファイル(`raw.md`)の雛形 |
+| `scripts/wiki_lint.py` | 機械の点検(下記) |
+| `wiki-lint.bat` | 機械の点検をダブルクリックで実行する |
+| `.gitlab-ci.yml` | GitLab の MR と既定ブランチへの push で機械の点検を走らせる |
+| `.githooks/pre-push` | push の前に機械の点検を走らせる |
+| `skills/` | Query / Ingest / Lint の参考スキル。直接は導入せず、使う側でマーケットプレイスにコピーして使う([skills/README.md](skills/README.md)) |
+
+## 始め方
+
+1. このテンプレートから、GitLab などに vault 用のリポジトリを作る(公開先へ push しないよう、リモートは必ず非公開のものにする)。
+2. 使う人はそのリポジトリを clone する。clone したパスを、スキル(プラグイン)側の vault の場所として指定する。
+3. clone した vault で一度だけ、push 前の点検を有効にする。
+
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+4. 題材のリポジトリの変化を点検に使うなら、vault 直下に `wiki-lint.repos.json` を作る(git では管理しない。人ごとに場所が違うため)。
+
+   ```json
+   { "myapp": "D:/src/myapp" }
+   ```
+
+必要なもの: git と Python 3.9 以上(標準ライブラリだけで動く)。
+
+## 使い方
+
+エージェントには次のように頼む(参考スキルを入れている場合)。
+
+| 頼み方 | 動作 |
+| --- | --- |
+| 「wiki に聞いて: 〜」 | wiki を読み、出典つきで答える。書き込まない |
+| 「格納する知見はある?」 | このセッションの作業から候補を 0〜3 件挙げて裏取りし、表で見せる。承認されたものだけを書いてコミットする |
+| 「wiki を点検して」 | 機械の点検と意味の点検を行い、表で報告する。承認された項目だけを直す |
+
+push は人が行う。
+
+## 機械の点検(wiki_lint.py)
+
+`wiki-lint.bat` をダブルクリックするか、vault で次を実行する。
 
 ```bash
-git clone <このリポジトリ> my-wiki
-cd my-wiki
-git remote remove origin   # ⚠️ 必須: 蓄積する知識を誤って公開先へpushしないため
+python scripts/wiki_lint.py
 ```
 
-`origin` が削除されたことを確認してから、wiki の内容を追加してください。
+エラーが 1 件でもあれば終了コード 1 を返す。CI と pre-push はこれで止まる。
 
-```powershell
-git remote -v  # 出力が空であること
-```
+| 種類 | 点検すること |
+| --- | --- |
+| エラー | ページの frontmatter(`created` / `updated` / `sources`)が揃っていない、日付の形が違う、`updated` が `created` より前 |
+| エラー | `sources` が空、`raw/` の外を挙げている、挙げた根拠ファイルが無い |
+| エラー | 見出し・**要点**・確度の行が無い、確度が ◎ か ○ で始まっていない、推定のラベル(△ ▲)がある |
+| エラー | `[[リンク]]` 先のページが無い、ページ名が重複している |
+| エラー | `index.md` に載っていないページ・二重に載っているページ・無いページへの行がある |
+| エラー | `log.md` の見出しが決まった形でない |
+| エラー | 根拠ファイルの frontmatter(`date` / `kind` / `watch`)の形が違う |
+| エラー | 既存の根拠ファイルが変わった・消えた、`log.md` の既存の行が変わった(比べる相手があるときだけ。下記) |
+| エラー | 認証情報らしき文字列(API キー・トークン・秘密鍵)がある、UTF-8 で読めないファイルがある |
+| 警告 | 要再確認: `watch` に書いた題材のファイルが、記録したコミット以降に変わった(`--fail-on-stale` でエラーにできる) |
+| 警告 | `watch` を確かめられない: 題材の場所が git のリポジトリでない、コミットが無い、そのコミットにパスが無い |
+| 警告 | 孤立ページ、どのページにも引用されていない根拠ファイル、規約が変わったのに `log.md` に記録が無い |
+| 情報 | 未解決の矛盾(`> ⚠️ 矛盾:`)があるページ、確かめられなかった項目 |
 
-VS Code でフォルダを開き、Copilot Chat(エージェントモード)で:
+**比べる相手**: 根拠と `log.md` が「足すだけ」になっているかは、過去のコミットと比べて確かめる。
 
-| コマンド | 動作 |
-|---|---|
-| `/wiki-ingest <パス・URL・テキスト>` | ソースを取り込み、wikiに統合 |
-| `/wiki-query <質問>` | wikiを検索し、出典付きで回答 |
-| `/wiki-lint` | 矛盾・リンク切れ・規約逸脱を点検 |
+- 手元で実行したとき: upstream(push 先のブランチ)と、作業ツリー(未コミットの変更を含む)を比べる。upstream が無ければ確かめない。
+- pre-push: 送り先にすでにあるコミットと、push するコミットを比べる。新しいブランチなら、送り先の既定ブランチ(`refs/remotes/<リモート>/HEAD`)と比べる。それも無いとき(空のリモートへの最初の push)は確かめない。
+- CI: MR の起点(MR のとき)か、push 前の先端(既定ブランチのとき)と比べ、確かめられないときはエラーにする(`--require-history`)。ただし、既定ブランチへの最初の push は比べる相手が無いので確かめない。
 
-コマンドが候補に出ない場合は、設定 `chat.promptFiles` が有効か確認する。
+| オプション | 意味 |
+| --- | --- |
+| `--base <ref>` | 履歴を比べる相手 |
+| `--head <ref>` | 履歴の点検で base と比べる側(既定: 作業ツリー) |
+| `--repos <path>` | `watch` のリポジトリ名と手元の場所の対応(既定: `wiki-lint.repos.json`) |
+| `--fail-on-stale` | 要再確認をエラーにする |
+| `--require-history` | 履歴を確かめられないときをエラーにする |
 
-## 開発プロジェクトと並行して使う
-
-マルチルートワークスペースにwikiを追加すると、コーディング中に `/wiki-query` で知見を引ける:
-
-```jsonc
-// myproject.code-workspace
-{
-  "folders": [
-    { "path": "path/to/myproject" },
-    { "path": "path/to/my-wiki" }
-  ],
-  "settings": {
-    "chat.useAgentsMdFile": true  // AGENTS.md(schema)を常時指示化。ウィンドウスコープのためここに書く
-  }
-}
-```
-
-## Copilot CLI: どこからでも自動参照
-
-次の PowerShell スクリプトは、グローバル指示を作成し、必要なら wiki へのリンクも作成する。既存の `%USERPROFILE%\.copilot\copilot-instructions.md` は `-Force` を明示しない限り上書きしない。
-
-### 推奨: Junction を作成する
-
-Windows では管理者権限や Developer Mode を必要としない Junction を既定にする。以下は、クローン済みのリポジトリ直下で実行する例。
-
-```powershell
-.\scripts\setup-copilot-wiki.ps1 `
-  -LinkPath "$env:USERPROFILE\llm-wiki"
-```
-
-Junction は Git で管理しないローカル専用のリンクである。別のマシンでは clone 後にこのコマンドを再実行する。
-
-### Symbolic Link を使う場合
-
-Symbolic Link は管理者権限または Windows の Developer Mode が必要であり、通常権限では作成に失敗する。その環境要件を満たす場合だけ、次のように明示する。
-
-```powershell
-.\scripts\setup-copilot-wiki.ps1 `
-  -LinkPath "$env:USERPROFILE\llm-wiki" `
-  -UseSymbolicLink
-```
-
-リンクが不要な場合は、クローン直下で `.\scripts\setup-copilot-wiki.ps1` を実行する。作成後は、設定したパスを CLI に許可する。
-
-```powershell
-copilot --add-dir "$env:USERPROFILE\llm-wiki"
-```
-
-セットアップの確認:
-
-```powershell
-Test-Path "$env:USERPROFILE\llm-wiki\index.md"  # True
-Get-Content "$env:USERPROFILE\.copilot\copilot-instructions.md"
-```
-
-## 構造
-
-```
-AGENTS.md          # schema: 規約・ワークフロー定義(このシステムの核)
-index.md           # 全ページのカタログ。エージェントはまずここを読む
-log.md             # 追記専用の操作ログ(grep可能な定型見出し)
-raw/<domain>/      # ソース原本(不変。エージェントは読むだけ)
-wiki/<domain>/     # 生成ページ(source-summary / entity / concept / synthesis)
-.github/prompts/   # 上記スラッシュコマンドの定義
-```
-
-## 運用の要点
-
-- コミットはエージェントが操作ごとに行う。**pushは常に人間の判断**
-- `raw/` は追加のみ。手動でもエージェントでも編集しない
-- 機密情報・ソース内の指示文の扱いは schema に規約あり(取り込み前に一読推奨)
-- 規約が実態に合わなくなったら AGENTS.md を直す。schemaは育てるもの
+意味の点検(本文が根拠に沿っているか、重複、矛盾、要再確認の取り直し)はスクリプトではできないので、エージェントに「wiki を点検して」と頼む。手順は [AGENTS.md](AGENTS.md) の「Lint」にある。
 
 ## License
 

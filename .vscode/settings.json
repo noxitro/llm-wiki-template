@@ -1,4 +1,0 @@
-{
-  // AGENTS.md(schema)を全チャットの常時指示として読み込む(実験的機能)
-  "chat.useAgentsMdFile": true
-}
