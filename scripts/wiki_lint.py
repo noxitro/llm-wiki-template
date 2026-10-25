@@ -182,8 +182,11 @@ def check_pages(root: Path, report: Report) -> tuple[dict[str, Path], dict[str, 
                 else:
                     cited[src].append(name)
 
-        if not re.search(r"^# \S", body, re.M):
+        heading = re.search(r"^# (\S.*)$", body, re.M)
+        if not heading:
             report.add(ERROR, rel, "見出し(# ページ名)が無い")
+        elif heading.group(1).strip() != name:
+            report.add(WARN, rel, f"見出し「{heading.group(1).strip()}」がファイル名「{name}」と違う([[リンク]] はファイル名で解決される)")
         if "**要点**" not in body:
             report.add(ERROR, rel, "**要点** の行が無い")
         prose = strip_code(body)
@@ -349,7 +352,8 @@ def check_history(root: Path, base: str | None, head: str | None, require: bool,
             path = root / "log.md"
             return read_text(path) if path.is_file() else None
         shown = git(root, "show", f"{ref}:log.md")
-        return shown.stdout.replace("\r\n", "\n") if shown.returncode == 0 else None
+        # 作業ツリー側(read_text)は BOM を落として読むので、こちらも揃える
+        return shown.stdout.lstrip("\ufeff").replace("\r\n", "\n") if shown.returncode == 0 else None
 
     old_log, new_log = log_at(merge_base), log_at(head)
     before = old_log.rstrip("\n") if old_log is not None else ""
