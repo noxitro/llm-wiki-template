@@ -4,7 +4,8 @@
 #
 # 送り先にすでにあるコミット(新しいブランチなら送り先の既定ブランチ)と、push するコミットを比べる。
 remote="$1"
-root=$(git rev-parse --show-toplevel)
+# vault の場所はこのフックの 1 つ上(vault がリポジトリのサブフォルダでも動く)
+root=$(cd "$(dirname "$0")/.." && pwd)
 
 py=""
 for candidate in python3 python; do

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLM Wiki の紐づけ(.llm-wiki.json)",
+  "description": "作業ディレクトリが使う LLM Wiki の vault と、この PC での場所。vault の scripts/setup.py が書く。PC ごとに違うので git では管理しない。",
+  "type": "object",
+  "required": ["vaults"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "default": {
+      "description": "--vault を付けずにスキルを使ったときの vault の名前。vaults のキーのどれか。",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "vaults": {
+      "description": "vault の名前 → 設定。名前は AGENTS.md の llm-wiki の節に載り、git で共有される。",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "description": "vault のフォルダの絶対パス(区切りは /)。AGENTS.md・index.md・log.md があるフォルダ。",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
