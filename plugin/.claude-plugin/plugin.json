@@ -6,7 +6,7 @@
     "name": "nitro",
     "url": "https://github.com/noxitro"
   },
-  "repository": "https://github.com/noxitro/llm-wiki",
+  "repository": "https://github.com/noxitro/llm-wiki-template",
   "license": "MIT",
   "keywords": ["wiki", "knowledge-base", "okf", "obsidian"]
 }
