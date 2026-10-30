@@ -7,6 +7,7 @@ on:
 jobs:
   test:
     strategy:
+      fail-fast: false # 1 つの組み合わせが落ちても、ほかの結果も見たい
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.9", "3.13"]

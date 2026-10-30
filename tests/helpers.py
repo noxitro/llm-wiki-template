@@ -77,7 +77,8 @@ class VaultCase(unittest.TestCase):
     def write(self, rel: str, text: str, root: Path | None = None) -> Path:
         path = (root or self.vault) / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8", newline="\n")
+        with path.open("w", encoding="utf-8", newline="\n") as f:  # write_text(newline=) は 3.10 以降
+            f.write(text)
         return path
 
     def read(self, rel: str, root: Path | None = None) -> str:

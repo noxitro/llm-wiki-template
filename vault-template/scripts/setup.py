@@ -106,8 +106,10 @@ class Plan:
             # 既存のファイルの改行(CRLF)と BOM は保つ
             raw = path.read_bytes() if path.is_file() else b""
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8",
-                            newline="\r\n" if b"\r\n" in raw else "\n")
+            # Path.write_text の newline 引数は Python 3.10 以降なので、open で書く
+            with path.open("w", encoding="utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8",
+                           newline="\r\n" if b"\r\n" in raw else "\n") as f:
+                f.write(text)
 
     def delete(self, path: Path, label: str) -> None:
         if path.is_file():
