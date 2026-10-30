@@ -1,0 +1,21 @@
+# このテンプレート自体の点検: setup と点検スクリプトのテスト、vault-template の機械の点検
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    strategy:
+      fail-fast: false # 1 つの組み合わせが落ちても、ほかの結果も見たい
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.9", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -s tests -v
+      - run: python vault-template/scripts/wiki_lint.py

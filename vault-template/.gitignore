@@ -1,0 +1,7 @@
+.obsidian/
+.trash/
+Thumbs.db
+Desktop.ini
+__pycache__/
+# 題材リポジトリの手元の場所は人ごとに違うので管理しない
+wiki-lint.repos.json
